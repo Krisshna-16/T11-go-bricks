@@ -83,6 +83,7 @@ const QUICK_REPLIES = [
 
 export default function App() {
   const [view, setView] = useState<"chat" | "setup">("chat");
+  const [customApiKey, setCustomApiKey] = useState("");
   const [messages, setMessages] = useState<Message[]>([
     {
       id: "welcome",
@@ -138,12 +139,27 @@ What would you like to know?`,
         content: msg.content
       }));
 
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
+      // Route via CORS proxy if custom API key is supplied (essential for GitHub Pages)
+      const targetUrl = customApiKey 
+        ? "https://corsproxy.io/?https://api.anthropic.com/v1/messages" 
+        : "https://api.anthropic.com/v1/messages";
+
+      const headers: Record<string, string> = {
+        "content-type": "application/json",
+        "anthropic-version": "2023-06-01"
+      };
+
+      if (customApiKey) {
+        headers["x-api-key"] = customApiKey;
+        headers["dangerously-allow-browser"] = "true";
+      } else {
+        // Fallback placeholder to trigger local environment proxy injection
+        headers["x-api-key"] = "antigravity-passthrough";
+      }
+
+      const response = await fetch(targetUrl, {
         method: "POST",
-        headers: {
-          "content-type": "application/json",
-          "anthropic-version": "2023-06-01"
-        },
+        headers: headers,
         body: JSON.stringify({
           model: "claude-sonnet-4-20250514",
           max_tokens: 1000,
@@ -212,9 +228,16 @@ What would you like to know?`,
           <p className="text-xs font-semibold text-gray-300">
             Ask me anything about our products
           </p>
-          <p className="text-[10px] text-[#00FF41]/80 font-mono tracking-wider">
-            Powered by GO-BRICS Business Lab | TASK_T11
-          </p>
+          <div className="flex items-center gap-2">
+            <p className="text-[10px] text-[#00FF41]/80 font-mono tracking-wider">
+              Powered by GO-BRICS Business Lab | TASK_T11
+            </p>
+            {customApiKey && (
+              <span className="text-[9px] bg-[#00FF41]/15 text-[#00FF41] border border-[#00FF41]/30 px-1.5 py-0.2 rounded font-mono uppercase tracking-wider font-semibold">
+                API Key Loaded
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Right: Toggle Button */}
@@ -379,6 +402,51 @@ What would you like to know?`,
                 Full operating specifications, guidelines, and technical parameters for the Shungite Shield AI Chatbot system.
               </p>
             </div>
+
+            {/* API KEY CONFIGURATION */}
+            <section className="space-y-4">
+              <h3 className="text-sm font-semibold uppercase tracking-wider text-[#00FF41] border-l-2 border-[#00FF41] pl-2">
+                API KEY CONFIGURATION
+              </h3>
+              <div className="bg-[#1A1A1A] rounded-xl p-5 border border-white/5 space-y-4">
+                <p className="text-xs text-gray-300 leading-relaxed">
+                  To use this chatbot live on GitHub Pages, please enter your <strong>Anthropic API Key</strong> below. The key is kept purely in React state memory (not stored anywhere) and requests are routed securely via <code>corsproxy.io</code> to bypass CORS blocks.
+                </p>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <input
+                    type="password"
+                    placeholder="sk-ant-..."
+                    value={customApiKey}
+                    onChange={(e) => setCustomApiKey(e.target.value)}
+                    className="flex-1 bg-[#0A0A0A] border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00FF41]/50 placeholder-gray-600 transition-colors"
+                  />
+                  {customApiKey && (
+                    <button
+                      onClick={() => setCustomApiKey("")}
+                      className="px-4 py-2 border border-red-500/30 hover:bg-red-500/10 text-red-400 hover:text-red-300 rounded text-xs uppercase font-mono tracking-wider font-semibold transition-colors focus:outline-none"
+                    >
+                      Clear Key
+                    </button>
+                  )}
+                </div>
+                <div className="pt-1">
+                  {customApiKey ? (
+                    <span className="inline-flex items-center gap-2 text-xs text-[#00FF41] font-mono">
+                      <span className="relative flex h-2 w-2">
+                        <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00FF41] opacity-75"></span>
+                        <span className="relative inline-flex rounded-full h-2 w-2 bg-[#00FF41]"></span>
+                      </span>
+                      API Key Active (Routing via CORS Proxy)
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-2 text-xs text-gray-500 font-mono">
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-gray-700"></span>
+                      No API Key (Using Local Antigravity Passthrough)
+                    </span>
+                  )}
+                </div>
+              </div>
+            </section>
 
             {/* SECTION 1 — What This Chatbot Does */}
             <section className="space-y-4">
