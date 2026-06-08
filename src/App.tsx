@@ -156,23 +156,41 @@ What would you like to know?`,
           parts: [{ text: msg.content }]
         }));
 
-        const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=${customApiKey}`;
+        // Tried models sequentially for maximum resilience (using gemini-2.5-flash as default)
+        const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
+        let response = null;
+        let lastError = null;
 
-        const response = await fetch(targetUrl, {
-          method: "POST",
-          headers: {
-            "content-type": "application/json"
-          },
-          body: JSON.stringify({
-            contents: geminiHistory,
-            systemInstruction: {
-              parts: [{ text: SYSTEM_PROMPT }]
+        for (const modelName of models) {
+          try {
+            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${customApiKey.trim()}`;
+            response = await fetch(targetUrl, {
+              method: "POST",
+              headers: {
+                "content-type": "application/json"
+              },
+              body: JSON.stringify({
+                contents: geminiHistory,
+                systemInstruction: {
+                  parts: [{ text: SYSTEM_PROMPT }]
+                }
+              })
+            });
+
+            if (response.ok) {
+              break; // Success! Exit loop
+            } else {
+              const errText = await response.text();
+              throw new Error(`HTTP ${response.status}: ${errText}`);
             }
-          })
-        });
+          } catch (err: any) {
+            console.warn(`Model ${modelName} failed:`, err.message);
+            lastError = err;
+          }
+        }
 
-        if (!response.ok) {
-          throw new Error(`Gemini API error: ${response.status}`);
+        if (!response || !response.ok) {
+          throw new Error(lastError?.message || "All Gemini models failed to respond.");
         }
 
         const data = await response.json();
@@ -498,7 +516,7 @@ What would you like to know?`,
                       type="password"
                       placeholder={apiProvider === "gemini" ? "Google Gemini API Key..." : "sk-ant-..."}
                       value={customApiKey}
-                      onChange={(e) => setCustomApiKey(e.target.value)}
+                      onChange={e => setCustomApiKey(e.target.value)}
                       className="flex-1 bg-[#0A0A0A] border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00FF41]/50 placeholder-gray-600 transition-colors"
                     />
                     {customApiKey && (
@@ -629,8 +647,8 @@ What would you like to know?`,
                     </thead>
                     <tbody className="divide-y divide-white/5">
                       {[
-                        { field: "AI Core Engines Supported", val: "Gemini 3 Flash & Claude Sonnet 3.5" },
-                        { field: "Gemini Model ID", val: "gemini-3-flash-preview" },
+                        { field: "AI Core Engines Supported", val: "Gemini 2.5 Flash & Claude Sonnet 3.5" },
+                        { field: "Gemini Model ID", val: "gemini-2.5-flash" },
                         { field: "Claude Model ID", val: "claude-sonnet-4-20250514" },
                         { field: "Response Latency", val: "2-4 seconds average" },
                         { field: "Uptime SLA", val: "99.9% (API-dependent)" },
