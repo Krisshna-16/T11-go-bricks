@@ -1,45 +1,76 @@
-# Shungite Shield — EMF Protection Store
-> Standalone Product Landing Page for GO-BRICS Business Lab
+# GO-BRICS AI Customer Support Chatbot — Shungite Shield
 
-A premium, high-performance, and mobile-responsive product landing page for **Shungite Shield**, an Ayurvedic and wellness brand selling authentic Type II Karelian Shungite EMF protection products.
+A fully functional, live, and testable AI chatbot web application for the **Shungite Shield** EMF Protection brand. Built for **GO-BRICS Business Lab (Task T11)** using React, TypeScript, Tailwind CSS, and the Anthropic Claude API.
 
----
-
-## 🎨 Design System & Aesthetics
-- **Primary Color**: Deep Black (`#0A0A0A`)
-- **Accent Color**: Metallic Gold (`#C9A84C`)
-- **Secondary Color**: Dark Charcoal (`#1A1A1A`)
-- **Typography**: Playfair Display (Headings) + Inter (Body Text) loaded directly from Google Fonts.
-- **Aesthetic Tone**: Premium, trustworthy, wellness-focused, combining scientific elements with spiritual grounding. Includes subtle radial gradients and CSS keyframe-based ambient background glowing particles.
+This chatbot handles general customer queries, product FAQs, and B2B/wholesale lead capture.
 
 ---
 
-## 📱 Page Sections (In Sequence)
-1. **Top Banner & Sticky Navigation**: Transparent-to-blur sticky header displaying the custom gold carbon hexagon (`⬡`) logo, smooth-scroll navigations, and an interactive hamburger menu for mobile viewports.
-2. **Hero Section**: Gold radial gradient backdrop, Playfair Display heading, call-to-actions (with gradient hovers and shadows), and a single-row responsive badge system (🔬 Lab Tested | 🌍 Sourced | ✅ Authentic).
-3. **Product Feature Highlights**: A responsive grid containing 6 styled feature cards (EMF Protection, Water Purification, Energy Balancing, Nobel Prize-winning Scientific Study, 100% Natural, Home & Work). Cards use dark charcoal backgrounds and gold top border accents.
-4. **Benefits Section**: Two-column layout showcasing a metallic gold C60 fullerene molecule SVG model on the left, a checklist of 7 user benefits on the right, and Dr. Robert Haag's conductive mineral quote in a custom gold box.
-5. **Trust & Credibility Section**: A mobile-responsive 2x2 grid representing credentials (Certified Authentic, Lab Tested, 5000+ Customers, Mumbai Warehouse).
-6. **Testimonials Section**: 3 star-rated customer testimonials featuring left-border accents.
-7. **Pricing Section**: 3 distinct cards (Starter Pack, Pro Home Protection Set with custom gold borders/badges, and Wellness Studio Pack) with interactive anchors.
-8. **Enquiry & Contact**: Validation-checked form utilizing React `useState` hooks. On submission, the form displays a gold success screen. The "Contact for B2B" button from pricing automatically scrolls to this section and pre-selects the "B2B / Wholesale" option.
-9. **Footer**: Quick links, product menus, social connect links, and bottom copyright metadata.
+## 🎨 Branded Design System & Aesthetics
+- **Color Scheme**: Deep Black (`#0A0A0A`), bright neon green (`#00FF41`) user bubbles and status cues, and dark charcoal (`#1A1A1A`) bot bubbles and information cards.
+- **Typography**: Inter (Body & UI text) imported directly from Google Fonts.
+- **Tone & Layout**: Cyberpunk/matrix-influenced premium design with custom pulsing animations, hexagon initial avatars, and modern glassmorphic buttons. Fully responsive and optimized for mobile screens (e.g. 375px phone views).
+
+---
+
+## 📱 App Structure & Views
+
+The application is structured into two clean views that can be toggled via the header:
+
+### VIEW 1 — CHAT INTERFACE (Default View)
+- **Header Bar**:
+  - Left: Animated pulsing green indicator showing "Online" + "Shungite Shield Support".
+  - Center: Core guide prompt + GO-BRICS task subtitle.
+  - Right: "Setup Guide" toggle button.
+- **Scrollable Chat Container**:
+  - User messages: Right-aligned, green background (`#00FF41`), white text.
+  - Bot messages: Left-aligned, dark charcoal background (`#1A1A1A`), white text.
+  - Bot Avatar: Clean inline SVG hexagon containing "SS" initials in green.
+  - Automatic scrolling: Automatically snaps/scrolls smoothly to the bottom of the conversation when new messages are added or when the bot is thinking.
+  - Timestamp: Displayed on each message in a clean format (e.g., "10:14 PM").
+- **Quick Reply Chips**:
+  - Below the welcome message, 6 quick replies are shown on initial load:
+    - `"What is Shungite?"` | `"Product Prices"` | `"Shipping Info"` | `"EMF Protection"` | `"B2B Enquiry"` | `"Water Purification"`
+  - Tapping any chip immediately triggers the message delivery.
+  - Chips automatically disappear once the user sends their first custom message.
+- **Thinking Indicator**:
+  - Displays three animated bouncing green dots inside a bot bubble while the Claude API is processing a response.
+- **Input Bar**:
+  - Clean text input with a green send arrow button.
+  - Disabled during loading to prevent race conditions.
+  - Pressing `Enter` or clicking the send button submits the text.
+
+### VIEW 2 — SETUP GUIDE
+- **Section 1 — What This Chatbot Does**: High-level system overview along with a checklist of key chatbot features.
+- **Section 2 — Trained Response Topics**: A grid showing the 10 topic areas that the system prompt teaches the bot to handle (Product Info, Pricing, Shipping, EMF Protection, Water Purification, Grounding, Molecular Science, Sourcing/Authenticity, B2B wholesale Pipeline, Support/Returns).
+- **Section 3 — How to Use**: A numbered, step-by-step walkthrough detailing how a user interacts with the system.
+- **Section 4 — Technical Details**: A tabular specification chart showing parameters such as model (`claude-sonnet-4-20250514`), average latency, history context memory, task metadata, and grading status.
+
+---
+
+## 🔬 Claude API Integration & System Prompt
+
+Every conversation message invokes the Anthropic Messages API:
+- **Endpoint**: `https://api.anthropic.com/v1/messages`
+- **Model**: `claude-sonnet-4-20250514`
+- **Max Tokens**: 1000
+- **Passthrough**: Utilizes the built-in Antigravity API key proxy (no manual API key entry required).
+- **Context Preservation**: Sends the full cumulative conversation history map `[{ role: "user" | "assistant", content: "..." }]` on every call.
+- **System Prompt**: Trains the AI model on:
+  - Product offerings (Starter Pack at ₹799, Home Protection Set at ₹1,899, Wellness Studio Pack at ₹4,499).
+  - Shipping timelines and terms (Free shipping above ₹999, ships from Mumbai warehouse, 3-7 business days delivery).
+  - Shungite science (Petrovsky Type II Shungite, Zazhoginskoye deposit, fullerenes, carbon content minimum 30%, electrical conductivity).
+  - B2B lead capture criteria (collecting company name, contact person, phone, city, and business type).
+  - Response guidelines (keeping replies between 3-5 sentences, warm tone, ending with a follow-up query or Call-to-Action).
+- **Error Handling**: Gracefully presents *"Sorry, I'm having trouble connecting. Please try again."* in the chat container if a network error occurs.
 
 ---
 
 ## 🛠️ Technology Stack
-- **Framework**: React 18 (TypeScript template)
-- **Bundler & Dev Server**: Vite (HMR enabled)
-- **Styling**: Tailwind CSS v3 (Pure configuration + custom CSS keyframe animations)
-- **Fonts**: Playfair Display + Inter (Preconnected in HTML for fast page loads)
-
----
-
-## ⚡ Performance Optimization & Mobile Responsiveness
-- **Fast Page Load**: Compiles as a lightweight static asset with a stylesheet size of just 31 kB and JavaScript size of 242 kB.
-- **Responsive Breakpoints**: Fully tested and styled for 375px (mobile), 768px (tablet), and 1280px (desktop) viewports.
-- **Mobile grids**: Features are configured in a 2-column layout (`grid-cols-2`) and trust cards in a 2x2 layout on mobile.
-- **Zoom Prevention**: Form text inputs are sized at `16px` (`text-base`) on mobile to prevent iOS Safari from automatically zooming into input boxes upon tap focus.
+- **Framework**: React 19 (TypeScript template)
+- **Dev Tooling**: Vite
+- **Styling**: Tailwind CSS
+- **API Access**: Fetch-based interaction with Anthropic endpoint
 
 ---
 
@@ -50,7 +81,7 @@ A premium, high-performance, and mobile-responsive product landing page for **Sh
 npm install
 ```
 
-### 2. Start Development Server (with Hot Reloading)
+### 2. Start Development Server
 ```bash
 npm run dev
 ```
@@ -59,4 +90,4 @@ npm run dev
 ```bash
 npm run build
 ```
-The compiled assets will be built inside the `./dist` directory.
+The compiled static build files will be generated in the `./dist` folder.
