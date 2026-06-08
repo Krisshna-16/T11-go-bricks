@@ -81,12 +81,46 @@ const QUICK_REPLIES = [
   "Water Purification"
 ];
 
+// Local rule-based responder for Demo Mode
+const getLocalResponse = (text: string): string => {
+  const query = text.toLowerCase().trim();
+  
+  if (query.includes("what is shungite") || query.includes("science") || query.includes("benefit") || query.includes("fullerene") || query.includes("stone")) {
+    return "🔮 Karelian Shungite is an ancient, carbon-rich stone sourced from the Zazhoginskoye deposit in Karelia, Russia. It contains fullerenes—special carbon molecules that absorb EMF radiation, purify water, and ground energy. Our Type II Shungite has a carbon content of over 30%. Would you like to check out our product range?";
+  }
+  
+  if (query.includes("price") || query.includes("cost") || query.includes("product") || query.includes("buy") || query.includes("pack") || query.includes("set") || query.includes("starter") || query.includes("home") || query.includes("wellness")) {
+    return "💰 We offer three premium packs:\n\n1. **Starter Pack** (₹799) - Raw Chunk, Phone Sticker, Care Guide.\n2. **Home Protection Set** (₹1,899 - Best Seller!) - Pyramid, Sphere, Water Stones, 2 Stickers, Gift Box.\n3. **Wellness Studio Pack** (₹4,499) - 5x Pyramids, 5x Chunks, 10x Stickers, Custom Engraving.\n\nWhich pack would you like to know more about?";
+  }
+  
+  if (query.includes("shipping") || query.includes("deliver") || query.includes("mumbai") || query.includes("days") || query.includes("cod") || query.includes("payment")) {
+    return "🚚 We offer free shipping across India for all orders above ₹999! Standard delivery takes 3 to 7 business days from our Mumbai warehouse. Express delivery is available, and we support UPI, Cards, Net Banking, and Cash on Delivery. Ready to place your order?";
+  }
+  
+  if (query.includes("emf") || query.includes("protection") || query.includes("radiation") || query.includes("shield") || query.includes("router") || query.includes("phone")) {
+    return "🛡️ Shungite Shield products absorb high-frequency EMF radiation from devices like phones, Wi-Fi routers, and laptops. The fullerene structure acts as a natural shield. We recommend placing pyramids near routers and our phone stickers directly on your mobile devices. Do you want to see our EMF protection kits?";
+  }
+  
+  if (query.includes("b2b") || query.includes("wholesale") || query.includes("bulk") || query.includes("distributor") || query.includes("retail") || query.includes("enquiry") || query.includes("company")) {
+    return "🤝 We offer bulk pricing (orders above 50 units) and custom engraving (orders above 100 units) for Ayurvedic retailers, wellness brands, yoga studios, and corporate gifting. Please share your company name, contact details, and requirements here, or email hello@shungiteshield.in!";
+  }
+  
+  if (query.includes("water") || query.includes("purification") || query.includes("stone") || query.includes("cleanse")) {
+    return "💧 Our Petrovsky Shungite water stones mineralise and purify drinking water. Simply rinse the stones, place them in a glass jar (approx 100g of stones per litre of water), and let it sit for 24-48 hours. This structures the water and adds beneficial fullerene carbon. Would you like to order the Home Set which includes water stones?";
+  }
+
+  // Lead capture detection
+  if (query.includes("@") || query.match(/\+?\d[\d -]{8,12}\d/) || query.includes("ltd") || query.includes("pvt") || query.includes("co.")) {
+    return "📨 Thank you for sharing your details! I have captured your B2B enquiry for GO-BRICS Business Lab. Our wholesale manager will contact you within 24 hours at hello@shungiteshield.in. Is there anything else you'd like to ask?";
+  }
+
+  return "👋 That's a great question! Shungite Shield products are crafted from authentic Karelian Shungite to help shield against EMF and ground your space. You can read more about it in our Setup Guide, or contact our support team at hello@shungiteshield.in. What product pack are you interested in?";
+};
+
 export default function App() {
   const [view, setView] = useState<"chat" | "setup">("chat");
   const [apiProvider, setApiProvider] = useState<"gemini" | "claude">("gemini");
-  
-  // Pre-loaded Gemini API Key from your workspace to make it functional out-of-the-box
-  const [customApiKey, setCustomApiKey] = useState("AIzaSyAiYuWVVN21tPW28xNq6qqprdx3CtyKOcY");
+  const [customApiKey, setCustomApiKey] = useState("");
   
   const [messages, setMessages] = useState<Message[]>([
     {
@@ -112,6 +146,27 @@ What would you like to know?`,
   // Check if user has sent any messages yet (to hide quick replies)
   const hasSentMessage = messages.some(msg => msg.role === "user");
 
+  // Attempt to fetch local .env configuration on start (only works in local dev environment)
+  useEffect(() => {
+    async function fetchLocalEnv() {
+      try {
+        const resp = await fetch("/.env");
+        if (resp.ok) {
+          const text = await resp.text();
+          const match = text.match(/GEMINI_API_KEY\s*=\s*['"]?([a-zA-Z0-9_-]+)['"]?/);
+          if (match && match[1]) {
+            setCustomApiKey(match[1]);
+            setApiProvider("gemini");
+            console.log("✓ Loaded Gemini API Key from local .env");
+          }
+        }
+      } catch (err) {
+        console.log("Local .env file not found or couldn't be parsed.");
+      }
+    }
+    fetchLocalEnv();
+  }, []);
+
   // Auto scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -136,18 +191,42 @@ What would you like to know?`,
     setInputValue("");
     setIsLoading(true);
 
+    // If no API key is configured, run in Demo Mode using local rule-based responder
+    if (!customApiKey.trim()) {
+      setTimeout(() => {
+        try {
+          const botReply = getLocalResponse(text);
+          const assistantMessage: Message = {
+            id: `bot-${Date.now()}`,
+            role: "assistant",
+            content: botReply,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+          };
+          setMessages(prev => [...prev, assistantMessage]);
+        } catch (err) {
+          console.error("Local responder error:", err);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 800); // 800ms delay for realistic typing simulation
+      return;
+    }
+
     try {
       // Build conversation history for the AI models
-      const apiMessages = [...messages, userMessage].map(msg => ({
-        role: msg.role,
-        content: msg.content
-      }));
+      const apiMessages = [...messages, userMessage]
+        .filter(msg => !msg.content.startsWith("⚠️")) // filter out local warning messages
+        .map(msg => ({
+          role: msg.role,
+          content: msg.content
+        }));
 
       let botReply = "";
 
       if (apiProvider === "gemini") {
-        if (!customApiKey.trim()) {
-          throw new Error("API Key is required for live mode. Please enter it in the Setup Guide.");
+        const apiKeyToUse = customApiKey.trim();
+        if (!apiKeyToUse) {
+          throw new Error("API Key is required. Please paste it in the Setup Guide.");
         }
         
         // Map history to Gemini API format (role must be "user" or "model")
@@ -156,14 +235,14 @@ What would you like to know?`,
           parts: [{ text: msg.content }]
         }));
 
-        // Tried models sequentially for maximum resilience (using gemini-2.5-flash as default)
+        // Tried models sequentially for maximum resilience
         const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-1.5-flash"];
         let response = null;
         let lastError = null;
 
         for (const modelName of models) {
           try {
-            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${customApiKey.trim()}`;
+            const targetUrl = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent?key=${apiKeyToUse}`;
             response = await fetch(targetUrl, {
               method: "POST",
               headers: {
@@ -207,7 +286,7 @@ What would you like to know?`,
         };
 
         if (customApiKey.trim()) {
-          headers["x-api-key"] = customApiKey;
+          headers["x-api-key"] = customApiKey.trim();
           headers["dangerously-allow-browser"] = "true";
         } else {
           headers["x-api-key"] = "antigravity-passthrough";
@@ -262,6 +341,8 @@ What would you like to know?`,
     }
   };
 
+  const isDemoMode = !customApiKey.trim();
+
   return (
     <div className="bg-[#0A0A0A] text-white min-h-screen font-sans flex flex-col selection:bg-[#00FF41] selection:text-black">
       {/* Header Bar */}
@@ -292,11 +373,11 @@ What would you like to know?`,
               Powered by GO-BRICS Business Lab | TASK_T11
             </p>
             <span className={`text-[9px] border px-1.5 py-0.2 rounded font-mono uppercase tracking-wider font-semibold ${
-              apiProvider === "gemini"
+              customApiKey.trim()
                 ? "bg-[#00FF41]/15 text-[#00FF41] border-[#00FF41]/30" 
-                : "bg-purple-500/15 text-purple-400 border-purple-500/30"
+                : "bg-red-500/15 text-red-400 border-red-500/30 animate-pulse"
             }`}>
-              {apiProvider === "gemini" ? "Gemini Live" : "Claude Live"}
+              {customApiKey.trim() ? `${apiProvider === "gemini" ? "Gemini" : "Claude"} Live` : "Offline"}
             </span>
           </div>
         </div>
@@ -326,6 +407,20 @@ What would you like to know?`,
         {view === "chat" ? (
           /* VIEW 1 - CHAT INTERFACE */
           <div className="flex-1 flex flex-col overflow-hidden">
+            {/* API Status Notice at the top of the chat */}
+            {isDemoMode && (
+              <div className="bg-amber-500/10 border-b border-amber-500/20 px-4 py-2 text-center text-xs text-amber-400">
+                ⚡ Running in Demo Mode (Local AI). Open the{" "}
+                <button
+                  onClick={() => setView("setup")}
+                  className="underline font-bold hover:text-amber-300"
+                >
+                  Setup Guide
+                </button>{" "}
+                to paste your free Gemini API key and activate live AI responses.
+              </div>
+            )}
+
             {/* Scrollable messages container */}
             <div className="flex-1 overflow-y-auto px-4 py-6 space-y-6 scrollbar-thin scrollbar-thumb-white/10 scrollbar-track-transparent">
               {messages.map((msg) => (
@@ -357,6 +452,8 @@ What would you like to know?`,
                       className={`rounded-2xl px-4 py-3 text-sm leading-relaxed shadow-sm whitespace-pre-wrap ${
                         msg.role === "user"
                           ? "bg-[#00FF41] text-black rounded-tr-none font-medium"
+                          : msg.content.startsWith("⚠️")
+                          ? "bg-red-950/20 text-red-400 rounded-tl-none border border-red-500/30"
                           : "bg-[#1A1A1A] text-white rounded-tl-none border border-white/5"
                       }`}
                     >
@@ -483,8 +580,7 @@ What would you like to know?`,
                         checked={apiProvider === "gemini"}
                         onChange={() => {
                           setApiProvider("gemini");
-                          // Reset to workspace Gemini key
-                          setCustomApiKey("AIzaSyAiYuWVVN21tPW28xNq6qqprdx3CtyKOcY");
+                          setCustomApiKey("");
                         }}
                         className="accent-[#00FF41]"
                       />
@@ -502,19 +598,31 @@ What would you like to know?`,
                         }}
                         className="accent-[#00FF41]"
                       />
-                      Anthropic Claude (API Key Required)
+                      Anthropic Claude
                     </label>
                   </div>
                 </div>
 
                 <div className="space-y-2">
-                  <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider">
-                    {apiProvider === "gemini" ? "Gemini API Key" : "Anthropic API Key"}
-                  </label>
+                  <div className="flex items-center justify-between">
+                    <label className="block text-xs font-bold text-gray-300 uppercase tracking-wider">
+                      {apiProvider === "gemini" ? "Gemini API Key" : "Anthropic API Key"}
+                    </label>
+                    {apiProvider === "gemini" && (
+                      <a
+                        href="https://aistudio.google.com/"
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-[10px] text-[#00FF41] hover:underline"
+                      >
+                        Get Free Key from Google AI Studio ↗
+                      </a>
+                    )}
+                  </div>
                   <div className="flex flex-col sm:flex-row gap-3">
                     <input
                       type="password"
-                      placeholder={apiProvider === "gemini" ? "Google Gemini API Key..." : "sk-ant-..."}
+                      placeholder={apiProvider === "gemini" ? "Paste your Google Gemini API Key..." : "sk-ant-..."}
                       value={customApiKey}
                       onChange={e => setCustomApiKey(e.target.value)}
                       className="flex-1 bg-[#0A0A0A] border border-white/10 rounded px-4 py-3 text-sm text-white focus:outline-none focus:border-[#00FF41]/50 placeholder-gray-600 transition-colors"
@@ -540,10 +648,13 @@ What would you like to know?`,
                       {apiProvider === "gemini" ? "Gemini Live Mode Enabled" : "Claude Live Mode Active (Proxy Routing)"}
                     </span>
                   ) : (
-                    <span className="inline-flex items-center gap-2 text-xs text-red-400 font-mono">
-                      <span className="relative inline-flex rounded-full h-2 w-2 bg-red-500"></span>
-                      Please input a valid API Key to enable responses
-                    </span>
+                    <div className="text-xs text-red-400 bg-red-500/5 border border-red-500/10 p-3 rounded-lg leading-relaxed space-y-1">
+                      <p className="font-semibold uppercase font-mono text-[10px]">⚠️ API KEY REQUIRED</p>
+                      <p>
+                        To activate this chatbot on the deployed URL, please paste your own key. 
+                        {apiProvider === "gemini" ? " Google Gemini keys are completely free, take 10 seconds to generate in Google AI Studio, and allow live testing on GitHub Pages." : ""}
+                      </p>
+                    </div>
                   )}
                 </div>
               </div>
